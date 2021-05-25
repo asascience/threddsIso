@@ -24,23 +24,21 @@
  * INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
  * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
  * CONTRACT, NEGLIGENCE OR OTHER TORTUOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE. 
+ * CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-package thredds.server.metadata.util;
+package gov.noaa.eds.util;
 
+import com.google.common.escape.Escaper;
 import com.google.common.html.HtmlEscapers;
-import com.google.common.xml.XmlEscapers;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 
-import com.google.common.escape.Escaper;
+import java.util.List;
 import org.jdom2.Element;
 import org.jdom2.Namespace;
 
-import ucar.nc2.constants.FeatureType;
 import thredds.client.catalog.Access;
 import thredds.client.catalog.Dataset;
 import thredds.client.catalog.Documentation;
@@ -48,25 +46,26 @@ import thredds.client.catalog.ThreddsMetadata;
 import thredds.client.catalog.Property;
 import thredds.client.catalog.Service;
 import thredds.client.catalog.ServiceType;
-
-
+import thredds.client.catalog.ThreddsMetadata.MetadataOther;
+import thredds.client.catalog.ThreddsMetadata.VariableGroup;
 import thredds.server.metadata.bean.Extent;
+import ucar.nc2.constants.FeatureType;
 import ucar.nc2.units.DateRange;
 import ucar.nc2.units.DateType;
 import ucar.nc2.units.TimeDuration;
 
 /**
  * NCMLModifier
- * 
+ *
  * @author: dneufeld Date: Jun 6, 2010
  */
 public class NCMLModifier {
-  static private org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NCMLModifier.class);
+	static private org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NCMLModifier.class);
 	private String _openDapService = null;
 	private String _version = "2.2.3";
 	private static DecimalFormat dFmt = new DecimalFormat(".#####");
-  private Escaper xmlEscaper = XmlEscapers.xmlAttributeEscaper();
 	private Escaper htmlEscaper = HtmlEscapers.htmlEscaper();
+
 
 	/**
 	 * Class constructor.
@@ -82,7 +81,7 @@ public class NCMLModifier {
 	/**
 	 * Update the NCML document by calculating Data Discovery elements using CF
 	 * conventions wherever possible.
-	 * 
+	 *
 	 * @param ext
 	 *            the geospatial extent of the NetCDF file
 	 * @param groupElem
@@ -101,7 +100,7 @@ public class NCMLModifier {
 			addElem(groupElem, "geospatial_lat_max", format(ext._maxLat), "float");
 		if (ext._lonUnits != null)
 			addElem(groupElem, "geospatial_lon_units", ext._lonUnits);
-    	if (ext._latUnits != null)
+		if (ext._latUnits != null)
 			addElem(groupElem, "geospatial_lat_units", ext._latUnits);
 		if (ext._lonRes != null)
 			addElem(groupElem, "geospatial_lon_resolution", ext._lonRes.toString());
@@ -136,7 +135,7 @@ public class NCMLModifier {
 	/**
 	 * Update the NCML document by calculating Data Discovery elements using
 	 * THREDDS metadata.
-	 * 
+	 *
 	 * @param ids
 	 *            the THREDDS dataset object retrieved from the catalog
 	 * @param groupElem
@@ -152,28 +151,29 @@ public class NCMLModifier {
 		if (ids.getName() != null)
 			addElem(groupElem, "full_name", ids.getName());
 
-		if ( ids.getDataFormatType() != null )
-			addElem(groupElem, "data_format_type", xmlEscaper.escape(ids.getDataFormatType().toString()));
+		if ((ids.getDataFormatType() != null) && (ids.getDataFormatType() != null))
+			addElem(groupElem, "data_format_type", htmlEscaper.escape(ids.getDataFormatType().toString()));
 
-		if ((ids.getDataFormatType() != null) && (ids.getFeatureType() != FeatureType.ANY))
-			addElem(groupElem, "data_type", xmlEscaper.escape(ids.getDataFormatName()));
+		if ((ids.getFeatureType() != null) && (ids.getFeatureType() != FeatureType.ANY))
+			addElem(groupElem, "data_type", htmlEscaper.escape(ids.getFeatureTypeName()));
 
-    if (ids.getCollectionType() != null)
-        addElem(groupElem, "collection_type", xmlEscaper.escape(ids.getCollectionType().toString()));
+		if ((ids.getCollectionType() != null) && (ids.getCollectionType() != null))
+			addElem(groupElem, "collection_type", htmlEscaper.escape(ids.getCollectionType().toString()));
+
 		if (ids.getAuthority() != null)
-			addElem(groupElem, "authority", xmlEscaper.escape(ids.getAuthority()));
+			addElem(groupElem, "authority", htmlEscaper.escape(ids.getAuthority()));
 
 		java.util.List<Documentation> docs = ids.getDocumentation();
 		if (docs.size() > 0) {
 			Element docsGrp = doAddGroupElem(groupElem, "documentation");
 			for (Documentation doc : docs) {
 				Element docGrp = doAddGroupElem(docsGrp, "document");
-				String type = (doc.getType() == null) ? "" : xmlEscaper.escape(doc.getType());
+				String type = (doc.getType() == null) ? "" : htmlEscaper.escape(doc.getType());
 				String inline = doc.getInlineContent();
 				String xlink = null;
 				String xlinkTitle = null;
 				if ((inline != null) && (inline.length() > 0))
-					inline = xmlEscaper.escape(inline);
+					inline = htmlEscaper.escape(inline);
 				addElem(docGrp, "inline", inline, type);
 				if (doc.hasXlink()) {
 					xlink = doc.getXlinkHref();
@@ -231,7 +231,7 @@ public class NCMLModifier {
 						"contributor");
 				String role = (t.getRole() == null) ? "" : htmlEscaper.escape(t.getRole());
 				addElem(contributorGrp, "role", role);
-				String name = (t.getName() == null) ? "" : xmlEscaper.escape(t.getName());
+				String name = (t.getName() == null) ? "" : htmlEscaper.escape(t.getName());
 				addElem(contributorGrp, "name", name);
 			}
 		}
@@ -240,8 +240,8 @@ public class NCMLModifier {
 		if (keywords.size() > 0) {
 			Element keywordsGrp = doAddGroupElem(groupElem, "keywords");
 			for (ThreddsMetadata.Vocab t : keywords) {
-				String vocab = (t.getVocabulary() == null) ? "" : xmlEscaper.escape(t.getVocabulary());
-				String text = xmlEscaper.escape(t.getText());
+				String vocab = (t.getVocabulary() == null) ? "" : htmlEscaper.escape(t.getVocabulary());
+				String text = htmlEscaper.escape(t.getText());
 				addElem(keywordsGrp, "keyword", text);
 				if (!vocab.equals(""))
 					addElem(keywordsGrp, "vocab", vocab);
@@ -252,8 +252,8 @@ public class NCMLModifier {
 		if (dates.size() > 0) {
 			Element datesGrp = doAddGroupElem(groupElem, "dates");
 			for (DateType d : dates) {
-				String type = (d.getType() == null) ? "" : xmlEscaper.escape(d.getType());
-				String text = xmlEscaper.escape(d.getText());
+				String type = (d.getType() == null) ? "" : htmlEscaper.escape(d.getType());
+				String text = htmlEscaper.escape(d.getText());
 				addElem(datesGrp, "date", text, type);
 			}
 		}
@@ -262,8 +262,8 @@ public class NCMLModifier {
 		if (projects.size() > 0) {
 			Element projectsGrp = doAddGroupElem(groupElem, "projects");
 			for (ThreddsMetadata.Vocab t : projects) {
-				String vocab = (t.getVocabulary() == null) ? "" : xmlEscaper.escape(t.getVocabulary());
-				String text = xmlEscaper.escape(t.getText());
+				String vocab = (t.getVocabulary() == null) ? "" : htmlEscaper.escape(t.getVocabulary());
+				String text = htmlEscaper.escape(t.getText());
 				addElem(projectsGrp, "project", text);
 				if (!vocab.equals(""))
 					addElem(projectsGrp, "vocab", vocab);
@@ -275,8 +275,8 @@ public class NCMLModifier {
 			Element creatorsGrp = doAddGroupElem(groupElem, "creators");
 			for (ThreddsMetadata.Source t : creators) {
 				Element creatorGrp = doAddGroupElem(creatorsGrp, "creator");
-				String name = xmlEscaper.escape(t.getName());
-				String email = xmlEscaper.escape(t.getEmail());
+				String name = htmlEscaper.escape(t.getName());
+				String email = htmlEscaper.escape(t.getEmail());
 				String url = (t.getUrl() != null) ? "" : t.getUrl();
 				addElem(creatorGrp, "name", name);
 				addElem(creatorGrp, "email", email);
@@ -290,8 +290,8 @@ public class NCMLModifier {
 			for (ThreddsMetadata.Source t : publishers) {
 				Element publisherGrp = doAddGroupElem(publishersGrp,
 						"publisher");
-				String name = xmlEscaper.escape(t.getName());
-				String email = xmlEscaper.escape(t.getEmail());
+				String name = htmlEscaper.escape(t.getName());
+				String email = htmlEscaper.escape(t.getEmail());
 				String url = (t.getUrl() != null) ? "" : t.getUrl();
 				addElem(publisherGrp, "name", name);
 				addElem(publisherGrp, "email", email);
@@ -299,9 +299,9 @@ public class NCMLModifier {
 			}
 		}
 
-		java.util.List<ThreddsMetadata.VariableGroup> vars = ids.getVariables();
+		List<VariableGroup> vars = ids.getVariables();
 		if (vars.size() > 0) {
-			for (ThreddsMetadata.VariableGroup t : vars) {
+			for (VariableGroup t : vars) {
 				String uri = (t.getVocabUri() == null) ? "" : t.getVocabUri()
 						.toString();
 				addElem(groupElem, "standard_name_vocabulary",
@@ -351,7 +351,7 @@ public class NCMLModifier {
 				Element vocabGrp = doAddGroupElem(groupElem, "vocab");
 				for (ThreddsMetadata.Vocab elem : nlist) {
 					addElem(vocabGrp, "name",
-							xmlEscaper.escape(elem.getText()));
+							htmlEscaper.escape(elem.getText()));
 				}
 			}
 		}
@@ -371,27 +371,34 @@ public class NCMLModifier {
 			if (tc.useResolution() && (resolution != null)
 					&& !resolution.isBlank()) {
 				addElem(groupElem, "time_coverage_resolution",
-						xmlEscaper.escape(resolution.toString()));
+						htmlEscaper.escape(resolution.toString()));
 			}
 			TimeDuration duration = tc.getDuration();
 			if (tc.useDuration() && (duration != null) && !duration.isBlank()) {
 				addElem(groupElem, "time_coverage_duration",
-						xmlEscaper.escape(duration.toString()));
+						htmlEscaper.escape(duration.toString()));
 			}
 
 		}
 
-		List<ThreddsMetadata.MetadataOther> metadata = ids.getMetadataOther();
+		List<MetadataOther> metadata = ids.getMetadataOther();
+		boolean gotSomeMetadata = false;
+		for (MetadataOther m : metadata) {
+			if (m.getXlinkHref() != null)
+				gotSomeMetadata = true;
+		}
 
-		if (metadata.size() > 0) {
+		if (gotSomeMetadata) {
 			Element metaGrp = doAddGroupElem(groupElem, "metadata");
 			for (ThreddsMetadata.MetadataOther m : metadata) {
 
 				String type = (m.getType() == null) ? "" : m
 						.getType();
-				String title = (m.getTitle() == null) ? "Type " + type
-						: m.getTitle();
-				addElem(metaGrp, title, m.getXlinkHref());
+				if (m.getXlinkHref() != null) {
+					String title = (m.getTitle() == null) ? "Type " + type
+							: m.getTitle();
+					addElem(metaGrp, title, m.getXlinkHref());
+				}
 			}
 		}
 
@@ -399,7 +406,6 @@ public class NCMLModifier {
 		if (props.size() > 0) {
 			Element propsGrp = doAddGroupElem(groupElem, "properties");
 			for (Property p : props) {
-
 				addElem(propsGrp, p.getName(), p.getValue());
 			}
 		}
@@ -407,7 +413,7 @@ public class NCMLModifier {
 
 	/**
 	 * Update the NCML document by adding ncISO specific metadata
-	 * 
+	 *
 	 * @param groupElem
 	 *            the group XML element of the NCML document
 	 */
@@ -440,7 +446,7 @@ public class NCMLModifier {
 	}
 
 	private void doAddElem(Element groupElem, final String name,
-			final String value, final String type) {
+						   final String value, final String type) {
 		Namespace ns = Namespace
 				.getNamespace("http://www.unidata.ucar.edu/namespaces/netcdf/ncml-2.2");
 
@@ -456,12 +462,12 @@ public class NCMLModifier {
 	}
 
 	private void addElem(final Element rootElem, final String name,
-			final String value) {
+						 final String value) {
 		doAddElem(rootElem, name, value, null);
 	}
 
 	private void addElem(final Element rootElem, final String name,
-			final String value, final String type) {
+						 final String value, final String type) {
 		doAddElem(rootElem, name, value, type);
 	}
 
