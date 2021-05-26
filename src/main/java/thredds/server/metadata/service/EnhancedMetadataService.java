@@ -24,7 +24,7 @@
 * INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
 * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
 * CONTRACT, NEGLIGENCE OR OTHER TORTUOUS ACTION, ARISING OUT OF OR IN
-* CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE. 
+* CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 package thredds.server.metadata.service;
 
@@ -69,7 +69,7 @@ public class EnhancedMetadataService {
 
     NcmlWriter ncMLWriter = new NcmlWriter();
     ByteArrayOutputStream dsToNcml = new ByteArrayOutputStream();
-    dataset.writeNcML(dsToNcml,null);
+    dataset.writeNcml(dsToNcml,null);
     InputStream ncmlIs = new ByteArrayInputStream(dsToNcml.toByteArray());
     XMLUtil xmlUtil = new XMLUtil(ncmlIs);
 
