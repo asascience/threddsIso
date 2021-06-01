@@ -24,7 +24,7 @@
 * INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
 * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
 * CONTRACT, NEGLIGENCE OR OTHER TORTUOUS ACTION, ARISING OUT OF OR IN
-* CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE. 
+* CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 package thredds.server.metadata.util;
 
@@ -32,24 +32,16 @@ import thredds.server.metadata.exception.ThreddsUtilitiesException;
 
 import org.apache.commons.lang.StringUtils;
 
-import ucar.nc2.NCdumpW;
 import ucar.nc2.NetcdfFile;
 import ucar.nc2.dataset.NetcdfDataset;
-import ucar.nc2.ncml.NcMLWriter;
+import ucar.nc2.dataset.NetcdfDatasets;
+import ucar.nc2.write.NcmlWriter;
 
 import javax.xml.transform.*;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.io.Writer;
+import java.io.*;
 
 /**
  * ThreddsTranslatorUtil
@@ -64,7 +56,7 @@ public class ThreddsTranslatorUtil {
     private static StreamSource getXSLT(String xslName) {
     	return new StreamSource(ThreddsTranslatorUtil.class.getResourceAsStream("/resources/xsl/" + xslName));
     }
-    
+
     /**
      * Creates an NCML file based up on a given location of a NetCDF file. The file will be deleted upon exit.
      * @param location The fully qualified path including the file name of the NetCDF file.
@@ -86,31 +78,29 @@ public class ThreddsTranslatorUtil {
         return doGetNcml(location,saveFileLocation);
     }
 
-    
+
 
     private static File doGetNcml(final String location, final String saveFileLocation) {
         File ncml = null;
 
-        try {
-            NetcdfDataset ncd = NetcdfDataset.openDataset(location);
+        try (NetcdfDataset ncd = NetcdfDatasets.openDataset(location)) {
             if(!StringUtils.isEmpty(saveFileLocation)){
                 ncml = new File(saveFileLocation);
             } else {
                 ncml = new File(_tempFileName);
             }
-            FileWriter writer = new FileWriter(ncml);
-            NCdumpW.writeNcML(ncd,writer,false,null);
+            try(FileWriter writer = new FileWriter(ncml)) {
+              ncd.writeNcml(writer, null);
+            }
         } catch (Exception e) {
-			String err = "Could not load NETCDF file: "+location+" because of Exception. "+e.getLocalizedMessage();
-			_log.error(err,e);			
+          String err = "Could not load NETCDF file: "+location+" because of Exception. "+e.getLocalizedMessage();
+          _log.error(err,e);
         } finally {
             if(StringUtils.isEmpty(saveFileLocation)){
                 if(ncml != null && ncml.exists()){
                     ncml.deleteOnExit();
                 }
             }
-
-
         }
         return ncml;
     }
@@ -143,7 +133,7 @@ public class ThreddsTranslatorUtil {
 
     private static File doGetNcml(final NetcdfFile ncFile, final String fileLocation)
             throws ThreddsUtilitiesException {
-        NcMLWriter ncMLWriter = new NcMLWriter();
+        NcmlWriter ncMLWriter = new NcmlWriter();
         File returnFile;
         if(!StringUtils.isEmpty(fileLocation)){
             returnFile = new File(fileLocation);
@@ -153,8 +143,7 @@ public class ThreddsTranslatorUtil {
         FileWriter fw = null;
         try {
             fw = new FileWriter(returnFile);
-            String ncml = ncMLWriter.writeXML(ncFile);
-            fw.write(ncml);
+            ncFile.writeNcml(fw, null);
         } catch (IOException e) {
 			String err = "Could not load NETCDF file: "+ncFile.getLocation()+" because of IOException. "+
                     e.getLocalizedMessage();
@@ -193,29 +182,30 @@ public class ThreddsTranslatorUtil {
 		 return doTransform(xsltFile, xml, null);
 	}
 
-    public static File transform(final String xsltFileStr, final String xmlStr, final String fileLocation) throws ThreddsUtilitiesException {         
-        File xml = new File(xmlStr); 
+    public static File transform(final String xsltFileStr, final String xmlStr, final String fileLocation) throws ThreddsUtilitiesException {
+        File xml = new File(xmlStr);
     	return doTransform(xsltFileStr, xml, fileLocation);
     }
 
-    public static void transform(final String xsltFileStr, final InputStream is, Writer writer) throws ThreddsUtilitiesException {         
+    public static void transform(final String xsltFileStr, final InputStream is, Writer writer) throws ThreddsUtilitiesException {
     	StreamSource xsltSS = getXSLT(xsltFileStr);
     	doTransform(xsltSS, is, writer);
     }
-    
-    public static void transform(final File xsltFile, final InputStream is, Writer writer) throws ThreddsUtilitiesException {         
+
+    public static void transform(final File xsltFile, final InputStream is, Writer writer) throws ThreddsUtilitiesException {
     	doTransform(xsltFile, is, writer);
     }
-    
-    public static void transform(final String xsltFileStr, final NetcdfFile netcdfFile, Writer writer) throws ThreddsUtilitiesException {         
+
+    public static void transform(final String xsltFileStr, final NetcdfFile netcdfFile, Writer writer) throws ThreddsUtilitiesException {
         StreamSource xsltSS = getXSLT(xsltFileStr);
-        NcMLWriter ncMLWriter = new NcMLWriter();
+        NcmlWriter ncMLWriter = new NcmlWriter();
 
 		String ncml;
 		InputStream is;
 		try {
-			ncml = ncMLWriter.writeXML(netcdfFile);
-			is = new ByteArrayInputStream(ncml.getBytes("UTF-8"));
+            ByteArrayOutputStream dsToNcml = new ByteArrayOutputStream();
+            netcdfFile.writeNcml(dsToNcml,null);
+            is = new ByteArrayInputStream(dsToNcml.toByteArray());
 		} catch (UnsupportedEncodingException uee) {
 			String err = "UnsupportedEncodingException " + uee.getLocalizedMessage();
 			_log.error(err, uee);
@@ -230,12 +220,12 @@ public class ThreddsTranslatorUtil {
 					err,
 					ioe,
 					ThreddsUtilitiesException.EXCEPTION_TYPES.TRANSFORMER_EXCEPTION);
-		} 	
-		
+		}
+
     	doTransform(xsltSS, is, writer);
     }
-       
-    
+
+
     /**
      * Transforms an XML document based on the provided XSLT. The transformed document will be
      * saved based upon the fileLocation.
@@ -287,7 +277,7 @@ public class ThreddsTranslatorUtil {
         return returnFile;
     }
 
-    private static File doTransform(final String xsltLocationStr, final File srcFile, final String fileLocation) 
+    private static File doTransform(final String xsltLocationStr, final File srcFile, final String fileLocation)
            throws ThreddsUtilitiesException {
         File returnFile;
         if(!StringUtils.isEmpty(fileLocation)){
@@ -299,7 +289,7 @@ public class ThreddsTranslatorUtil {
         Templates cachedXSLT;
         try {
             StreamResult result = new StreamResult(new FileOutputStream(returnFile));
-            StreamSource xmlStream = new StreamSource(srcFile);		
+            StreamSource xmlStream = new StreamSource(srcFile);
 			cachedXSLT = transFact.newTemplates(xsltSource);
 			Transformer trans = cachedXSLT.newTransformer();
 			trans.transform(xmlStream, result);
@@ -324,13 +314,13 @@ public class ThreddsTranslatorUtil {
             }
         }
         return returnFile;
-    }    
+    }
 
 	private static void doTransform(final StreamSource xsltSS, final InputStream is, Writer writer) throws ThreddsUtilitiesException {
 		try {
 
 		    Templates cachedXSLT;
-		    StreamResult result = new StreamResult(writer);        
+		    StreamResult result = new StreamResult(writer);
 
 			StreamSource xmlStream = new StreamSource(is);
 			cachedXSLT = transFact.newTemplates(xsltSS);
@@ -354,13 +344,13 @@ public class ThreddsTranslatorUtil {
 		}
 
 	}
-    
+
 	private static void doTransform(final File xslFile, final InputStream is, Writer writer) throws ThreddsUtilitiesException {
 		try {
 		    Source xsltSource = new StreamSource(xslFile);
 		    Transformer  transformer = transFact.newTransformer(xsltSource);
 		    //Templates cachedXSLT;
-		    StreamResult result = new StreamResult(writer);        
+		    StreamResult result = new StreamResult(writer);
 
 			StreamSource xmlStream = new StreamSource(is);
 			//cachedXSLT = transFact.newTemplates(xsltSource);

@@ -24,26 +24,26 @@
 * INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
 * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
 * CONTRACT, NEGLIGENCE OR OTHER TORTUOUS ACTION, ARISING OUT OF OR IN
-* CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE. 
+* CONNECTION WITH THE ACCESS, USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 package thredds.server.metadata.service;
 
-import thredds.catalog.InvDataset;
+import thredds.client.catalog.Dataset;
 import thredds.server.metadata.bean.Extent;
 import thredds.server.metadata.util.ElementNameComparator;
 import thredds.server.metadata.util.NCMLModifier;
 import thredds.server.metadata.util.ThreddsExtentUtil;
 import thredds.server.metadata.util.XMLUtil;
 import ucar.nc2.dataset.NetcdfDataset;
-import ucar.nc2.ncml.NcMLWriter;
-
+import ucar.nc2.write.NcmlWriter;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.Writer;
 import java.util.List;
 
-import org.jdom.Attribute;
-import org.jdom.Element;
+import org.jdom2.Attribute;
+import org.jdom2.Element;
 
 /**
  * EnhancedMetadataService
@@ -60,16 +60,17 @@ public class EnhancedMetadataService {
    * @param dataset NetcdfDataset to enhance the NCML
    * @param writer  writer to send enhanced NCML to
    */
-  public static void enhance(final NetcdfDataset dataset, final InvDataset ids, final Writer writer) throws Exception {
+  public static void enhance(final NetcdfDataset dataset, final Dataset ids, final Writer writer) throws Exception {
     Extent ext = null;
 
     NCMLModifier ncmlMod = new NCMLModifier();
 
     ext = ThreddsExtentUtil.getExtent(dataset);
 
-    NcMLWriter ncMLWriter = new NcMLWriter();
-    String ncml = ncMLWriter.writeXML(dataset);
-    InputStream ncmlIs = new ByteArrayInputStream(ncml.getBytes("UTF-8"));
+    NcmlWriter ncMLWriter = new NcmlWriter();
+    ByteArrayOutputStream dsToNcml = new ByteArrayOutputStream();
+    dataset.writeNcml(dsToNcml,null);
+    InputStream ncmlIs = new ByteArrayInputStream(dsToNcml.toByteArray());
     XMLUtil xmlUtil = new XMLUtil(ncmlIs);
 
     List<Element> list = xmlUtil.elemFinder("//ncml:netcdf", "ncml", "http://www.unidata.ucar.edu/namespaces/netcdf/ncml-2.2");
